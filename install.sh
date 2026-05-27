@@ -100,46 +100,17 @@ grep -q COMPlus_gcServer ~/.bashrc || {
 
 mkdir -p ~/Solace
 
-echo "[5] Downloading pre-compiled server"
+echo "[5] Building Solace from branch source"
 cd ~
-
-RELEASE_JSON=$(curl -s https://api.github.com/repos/Earth-Restored/Solace/releases)
-
-URL=$(echo "$RELEASE_JSON" \
-| grep -o '"browser_download_url": "[^"]*linux-arm64[^"]*"' \
-| cut -d '"' -f4 \
-| head -n1)
-
-TAG=$(echo "$RELEASE_JSON" \
-| grep '"tag_name"' \
-| head -n1 \
-| cut -d '"' -f4)
-
-if [ -z "$URL" ]; then
-    echo "[ERROR] No download URL found"
-    exit 1
-fi
-
-echo "[INFO] Latest build: $TAG"
-echo "[INFO] Downloading..."
-
-curl -L --progress-bar -o Solace-linux-arm64.zip "$URL"
-
-unzip -o Solace-linux-arm64.zip
+git clone --recurse-submodules -b Bridge-Speed-Up https://github.com/LobsLAF/Solace.git ~/Solace_Source
+cd ~/Solace_Source
+export DOTNET_ROOT=$HOME/.dotnet
+export PATH=$PATH:$HOME/.dotnet
+pwsh ./publish.ps1 --profiles framework-dependent-linux-arm64
 rm -rf ~/Solace/*
-echo "$TAG" > ~/Solace/version.txt
-
-if [ -d Solace-linux-arm64 ]; then
-    mv Solace-linux-arm64/* ~/Solace/
-    rm -rf Solace-linux-arm64
-else
-    mv run_launcher.ps1 ~/Solace/ 2>/dev/null || true
-    mv components       ~/Solace/ 2>/dev/null || true
-    mv launcher         ~/Solace/ 2>/dev/null || true
-    mv staticdata       ~/Solace/ 2>/dev/null || true
-fi
-
-chmod -R +x ~/Solace/components/ 2>/dev/null || true
+cp -r build/Release/framework-dependent-linux-arm64/* ~/Solace/
+cd ~
+rm -rf ~/Solace_Source
 
 echo "[6] Cleaning installer leftovers"
 
@@ -155,7 +126,7 @@ print_step "4. CREATING EARTH COMMAND"
 
 mkdir -p "$PREFIX/bin"
 
-curl -fsSL https://raw.githubusercontent.com/Earth-Restored/Solace/refs/heads/main/distros/Termux.sh -o "$PREFIX/bin/earth"
+curl -fsSL https://raw.githubusercontent.com/LobsLAF/Solace/refs/heads/Bridge-Speed-Up/distros/Termux.sh -o "$PREFIX/bin/earth"
 
 chmod +x "$PREFIX/bin/earth"
 
@@ -409,13 +380,13 @@ chown "$CURRENT_USER":"$(id -gn "$CURRENT_USER")" "$INSTALL_DIR"
 
 if [ -d "$REPO_DIR/.git" ]; then
     cd "$REPO_DIR"
-    git remote set-url origin https://github.com/Earth-Restored/Solace.git
-    git fetch origin main
-    git reset --hard origin/main
+    git remote set-url origin https://github.com/LobsLAF/Solace.git
+    git fetch origin Bridge-Speed-Up
+    git reset --hard origin/Bridge-Speed-Up
     git submodule update --init --recursive
     ok "Repository updated"
 else
-    sudo -u "$CURRENT_USER" git clone --recurse-submodules https://github.com/Earth-Restored/Solace.git "$REPO_DIR"
+    sudo -u "$CURRENT_USER" git clone --recurse-submodules -b Bridge-Speed-Up https://github.com/LobsLAF/Solace.git "$REPO_DIR"
     cd "$REPO_DIR"
     ok "Repository cloned"
 fi
