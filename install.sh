@@ -70,7 +70,7 @@ apt update -y
 
 echo "[2] Installing dependencies"
 apt install -y wget fzf curl unzip gnupg software-properties-common \
-    apt-transport-https ca-certificates openjdk-21-jre libicu-dev
+    apt-transport-https ca-certificates openjdk-21-jre libicu-dev git
 
 if ! command -v pwsh >/dev/null 2>&1; then
     echo "[3] Installing PowerShell"
