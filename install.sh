@@ -106,6 +106,10 @@ git clone --recurse-submodules -b Bridge-Speed-Up https://github.com/LobsLAF/Sol
 cd ~/Solace_Source
 export DOTNET_ROOT=$HOME/.dotnet
 export PATH=$PATH:$HOME/.dotnet
+# Fix for .NET 10 GC errors in Termux/proot-distro
+export DOTNET_gcServer=0
+export DOTNET_GCRegionCannibalization=1
+export DOTNET_GCHeapHardLimit=10000000
 pwsh ./publish.ps1 --profiles framework-dependent-linux-arm64
 rm -rf ~/Solace/*
 cp -r build/Release/framework-dependent-linux-arm64/* ~/Solace/
