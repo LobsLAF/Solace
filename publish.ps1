@@ -1,7 +1,8 @@
 #!/usr/bin/env pwsh
 Param (
     [string] $configuration = 'Release',
-    [string[]] $profiles = @('framework-dependent-win-x64', 'framework-dependent-linux-x64') # 'framework-dependent-osx-arm64'
+    [string[]] $profiles = @('framework-dependent-win-x64', 'framework-dependent-linux-x64'), # 'framework-dependent-osx-arm64'
+    [switch] $SkipSubmoduleUpdate = $false
 )
 
 function Invoke-ProjectPublish {
@@ -26,7 +27,10 @@ function Invoke-ProjectPublish {
     }
 }
 
-git submodule update --init --remote --merge --recursive
+if (-not $SkipSubmoduleUpdate) {
+    Write-Host "Updating submodules..." -ForegroundColor Gray
+    git submodule update --init --recursive
+}
 
 $projects = "Solace.ApiServer", "Solace.Buildplate", "Solace.EventBus.Server", "Solace.ObjectStore.Server", "Solace.TappablesGenerator", "Solace.TileRenderer"
 
