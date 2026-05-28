@@ -25,16 +25,15 @@ internal sealed class CatalogController : SolaceControllerBase
 
     private static StaticData.StaticData StaticData => Program.staticData;
 
-    private static readonly Item[] itemData;
-
-    static CatalogController()
+    private static Item[] GetItemData()
     {
         var brfPrice = new Item.PriceR([
             new([new("ecd19d3c-7635-402c-a185-eb11cb6c6946", "ecd19d3c-7635-402c-a185-eb11cb6c6946", "ecd19d3c-7635-402c-a185-eb11cb6c6946", 0)]),
             new([new("0113e233-7637-48e7-91b0-349fdc74713d", "0113e233-7637-48e7-91b0-349fdc74713d", "0113e233-7637-48e7-91b0-349fdc74713d", 0)])
         ], []);
 
-        itemData = [
+        var items = new List<Item>
+        {
             // required for shop to load for some reason...
             new Item(
                 new("B63A0803D3653643", "namespace", "namespace"),
@@ -77,20 +76,29 @@ internal sealed class CatalogController : SolaceControllerBase
                     Guid.Parse("53bee6fe-c9d9-43c9-b3af-4c5438fba4b7"),
                     "persona_feet"
                 )
-            ),
-            .. StaticData.Playfab.Items.Select(item => CIItemToItem(item.Value)),
-        ];
-    }
+            )
+        };
 
-    private sealed record CatalogSearchRequest(
-        bool Count,
-        string Filter,
-        string? Select,
-        string? OrderBy,
-        int? Top,
-        int? Skip,
-        string Scid
-    );
+        foreach (var kvp in StaticData.Playfab.Items)
+        {
+            if (kvp.Value.Data is CItem.QueryManifestData qmd)
+            {
+                var dynamicManifest = Program.shopManager.GetQueryManifest(qmd.MinClientVersion, qmd.MaxClientVersion);
+                items.Add(CIItemToItem(kvp.Value with { Data = dynamicManifest }));
+            }
+            else
+            {
+                items.Add(CIItemToItem(kvp.Value));
+            }
+        }
+
+        foreach (var virtualItem in Program.shopManager.GetVirtualItems())
+        {
+            items.Add(CIItemToItem(virtualItem));
+        }
+
+        return [.. items];
+    }
 
     [HttpPost("Search")]
     public async Task<Results<ContentHttpResult, BadRequest>> SearchAsync()
@@ -110,7 +118,7 @@ internal sealed class CatalogController : SolaceControllerBase
             string filter = request.Filter
                 .Replace("platforms/any(tp: tp eq 'android.googleplay' and tp eq 'title.earth')", "platforms/any(tp: tp eq 'android.googleplay') and platforms/any(tp: tp eq 'title.earth')");
 
-            var oDataQuery = itemData.AsQueryable().OData(settings =>
+            var oDataQuery = GetItemData().AsQueryable().OData(settings =>
                 {
                     settings.EnableCaseInsensitive = true;
                     settings.ValidationSettings.MaxNodeCount = 10000;

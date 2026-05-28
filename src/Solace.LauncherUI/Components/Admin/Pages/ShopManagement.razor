@@ -1,0 +1,452 @@
+@page "/Admin/Shop"
+@using Microsoft.AspNetCore.Authorization
+@using Serilog
+@using Solace.DB
+@using Solace.DB.Models.Admin
+@using Solace.LauncherUI.Utils
+@using Solace.StaticData
+@attribute [Authorize(Policy = Permissions.ManageServer)]
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+
+<PageTitle>Shop Management - Solace</PageTitle>
+
+<div class="container-fluid py-3 px-md-4">
+    <div class="row align-items-center mb-4">
+        <div class="col-12 col-md-6">
+            <h2 class="h3 mb-1"><i class="bi bi-cart-fill me-2 text-primary"></i>Shop Management</h2>
+            <p class="text-muted small">Manage shop tabs and offers</p>
+        </div>
+        <div class="col-12 col-md-6 text-md-end">
+            <button class="btn btn-outline-primary" @onclick="RefreshLiveShopAsync">
+                <i class="bi bi-arrow-clockwise me-1"></i>Refresh Live Shop
+            </button>
+        </div>
+    </div>
+
+    @if (_errorMessage is not null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-octagon-fill me-2"></i>@_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Shop Tabs -->
+        <div class="col-12 col-xl-4 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Shop Tabs</h5>
+                    <button class="btn btn-sm btn-primary" @onclick="CreateNewTab"><i class="bi bi-plus-lg me-1"></i>Add Tab</button>
+                </div>
+                <div class="card-body p-0">
+                    @if (_tabs is null)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        </div>
+                    }
+                    else if (_tabs.Count == 0)
+                    {
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-folder2-open d-block mb-2 fs-2"></i>
+                            No tabs defined. Use static tabs.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var tabEntry in _tabs)
+                            {
+                                <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center @(_selectedTabId == tabEntry.Id ? "active" : "")" 
+                                     style="cursor: pointer;" @onclick="() => _selectedTabId = tabEntry.Id">
+                                    <div>
+                                        <i class="bi @tabEntry.Tab.Icon me-2"></i>@tabEntry.Tab.Title
+                                        <span class="badge bg-secondary rounded-pill ms-2">@tabEntry.Tab.Order</span>
+                                    </div>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-info" @onclick:stopPropagation="true" @onclick="() => StartEditTab(tabEntry)"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-outline-danger" @onclick:stopPropagation="true" @onclick="() => DeleteTabAsync(tabEntry.Id)"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Shop Offers -->
+        <div class="col-12 col-xl-8 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Offers in @(_selectedTabId != null ? _tabs?.FirstOrDefault(t => t.Id == _selectedTabId).Tab.Title : "Selected Tab")</h5>
+                    <button class="btn btn-sm btn-primary" @onclick="CreateNewOffer" disabled="@(_selectedTabId == null)"><i class="bi bi-plus-lg me-1"></i>Add Offer</button>
+                </div>
+                <div class="card-body p-0">
+                    @if (_selectedTabId == null)
+                    {
+                        <div class="text-center py-5 text-muted">
+                            Select a tab on the left to manage offers.
+                        </div>
+                    }
+                    else if (_offers is null)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Cost</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th class="text-end pe-4">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var offerEntry in _offers.Where(o => o.Offer.TabId == _tabs?.FirstOrDefault(t => t.Id == _selectedTabId).Tab.Title))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="fw-bold">@offerEntry.Offer.Name</div>
+                                                <small class="text-muted">@offerEntry.Offer.ItemId</small>
+                                            </td>
+                                            <td><i class="bi bi-gem text-danger me-1"></i>@offerEntry.Offer.Cost</td>
+                                            <td><span class="badge bg-info text-dark">@offerEntry.Offer.Type</span></td>
+                                            <td>
+                                                @if (offerEntry.Offer.IsActive)
+                                                {
+                                                    <span class="badge bg-success">Active</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Disabled</span>
+                                                }
+                                            </td>
+                                            <td class="text-end pe-4">
+                                                <button class="btn btn-sm btn-outline-primary" @onclick="() => StartEditOffer(offerEntry)"><i class="bi bi-pencil"></i></button>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteOfferAsync(offerEntry.Id)"><i class="bi bi-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (_showTabModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(_editingTabId == null ? "New Tab" : "Edit Tab")</h5>
+                    <button type="button" class="btn-close" @onclick="() => _showTabModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-control" @bind="_editTab.Title" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Icon (Bootstrap Icon class)</label>
+                        <input type="text" class="form-control" @bind="_editTab.Icon" placeholder="bi-cart" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Order</label>
+                        <input type="number" class="form-control" @bind="_editTab.Order" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => _showTabModal = false">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveTabAsync">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_showOfferModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(_editingOfferId == null ? "New Offer" : "Edit Offer")</h5>
+                    <button type="button" class="btn-close" @onclick="() => _showOfferModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" class="form-control" @bind="_editOffer.Name" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Item ID (Guid)</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" @bind="_editOffer.ItemId" />
+                                <button class="btn btn-outline-secondary" @onclick="ShowItemPicker">Browse</button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Cost (Rubies)</label>
+                            <input type="number" class="form-control" @bind="_editOffer.Cost" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Amount</label>
+                            <input type="number" class="form-control" @bind="_editOffer.Amount" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Rarity</label>
+                            <select class="form-select" @bind="_editOffer.Rarity">
+                                <option>Common</option>
+                                <option>Uncommon</option>
+                                <option>Rare</option>
+                                <option>Epic</option>
+                                <option>Legendary</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Offer Type</label>
+                            <select class="form-select" @bind="_editOffer.Type">
+                                <option value="InventoryItemOffer">Inventory Item</option>
+                                <option value="BuildplateOffer">Buildplate</option>
+                                <option value="RubyOffer">Ruby Package</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3 d-flex align-items-end">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" @bind="_editOffer.IsActive" id="isActiveCheck">
+                                <label class="form-check-input-label" for="isActiveCheck">
+                                    Active in Shop
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => _showOfferModal = false">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveOfferAsync">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_showItemPicker)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1060;" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Pick an Item</h5>
+                    <div class="ms-3 flex-grow-1">
+                        <input type="text" class="form-control form-control-sm" placeholder="Search items..." @bind="_itemSearchTerm" @bind:event="oninput" />
+                    </div>
+                    <button type="button" class="btn-close" @onclick="() => _showItemPicker = false"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="list-group list-group-flush">
+                        @foreach (var item in GetFilteredItems())
+                        {
+                            <button class="list-group-item list-group-item-action py-2" @onclick="() => PickItem(item)">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <strong>@item.Name</strong>
+                                        <div class="small text-muted">@item.Id</div>
+                                    </div>
+                                    <span class="badge bg-light text-dark border align-self-center">@item.Rarity</span>
+                                </div>
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private EarthDB? _earthDB;
+    private List<(string Id, ShopTab Tab)>? _tabs;
+    private List<(string Id, ShopOffer Offer)>? _offers;
+    private string? _errorMessage;
+    private string? _selectedTabId;
+
+    // Modals
+    private bool _showTabModal;
+    private bool _showOfferModal;
+    private bool _showItemPicker;
+
+    // Edit states
+    private string? _editingTabId;
+    private ShopTab _editTab = new();
+    
+    private string? _editingOfferId;
+    private ShopOffer _editOffer = new();
+
+    // Item Picker
+    private StaticData? _staticData;
+    private string _itemSearchTerm = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _earthDB = EarthDB.Open(Settings.Instance.EarthDatabaseConnectionString ?? "");
+            _staticData = new StaticData(Settings.Instance.StaticDataPath ?? "../staticdata");
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to initialize Shop Management page");
+            _errorMessage = "Failed to load shop data.";
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (_earthDB == null) return;
+        _tabs = await DataUtils.GetShopTabsAsync(_earthDB).ToListAsync();
+        _offers = await DataUtils.GetShopOffersAsync(_earthDB).ToListAsync();
+        
+        if (_selectedTabId == null && _tabs.Count > 0)
+        {
+            _selectedTabId = _tabs[0].Id;
+        }
+    }
+
+    private void CreateNewTab()
+    {
+        _editingTabId = null;
+        _editTab = new ShopTab { Order = (_tabs?.Max(t => (int?)t.Tab.Order) ?? 0) + 1 };
+        _showTabModal = true;
+    }
+
+    private void StartEditTab((string Id, ShopTab Tab) entry)
+    {
+        _editingTabId = entry.Id;
+        _editTab = new ShopTab { Title = entry.Tab.Title, Icon = entry.Tab.Icon, Order = entry.Tab.Order };
+        _showTabModal = true;
+    }
+
+    private async Task SaveTabAsync()
+    {
+        if (_earthDB == null) return;
+        string id = _editingTabId ?? Guid.NewGuid().ToString();
+        await DataUtils.UpdateShopTabAsync(_earthDB, id, _editTab);
+        _showTabModal = false;
+        await LoadDataAsync();
+    }
+
+    private async Task DeleteTabAsync(string id)
+    {
+        if (_earthDB == null) return;
+        if (await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete this tab? All associated offers will lose their tab reference."))
+        {
+            await DataUtils.DeleteShopTabAsync(_earthDB, id);
+            if (_selectedTabId == id) _selectedTabId = null;
+            await LoadDataAsync();
+        }
+    }
+
+    private void CreateNewOffer()
+    {
+        var selectedTab = _tabs?.FirstOrDefault(t => t.Id == _selectedTabId);
+        if (selectedTab.Id == null) return;
+
+        _editingOfferId = null;
+        _editOffer = new ShopOffer { TabId = selectedTab.Tab.Title, IsActive = true };
+        _showOfferModal = true;
+    }
+
+    private void StartEditOffer((string Id, ShopOffer Offer) entry)
+    {
+        _editingOfferId = entry.Id;
+        _editOffer = new ShopOffer 
+        { 
+            TabId = entry.Offer.TabId, 
+            ItemId = entry.Offer.ItemId, 
+            Name = entry.Offer.Name,
+            Cost = entry.Offer.Cost,
+            Amount = entry.Offer.Amount,
+            Rarity = entry.Offer.Rarity,
+            IsActive = entry.Offer.IsActive,
+            Type = entry.Offer.Type
+        };
+        _showOfferModal = true;
+    }
+
+    private async Task SaveOfferAsync()
+    {
+        if (_earthDB == null) return;
+        string id = _editingOfferId ?? Guid.NewGuid().ToString();
+        await DataUtils.UpdateShopOfferAsync(_earthDB, id, _editOffer);
+        _showOfferModal = false;
+        await LoadDataAsync();
+    }
+
+    private async Task DeleteOfferAsync(string id)
+    {
+        if (_earthDB == null) return;
+        if (await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete this offer?"))
+        {
+            await DataUtils.DeleteShopOfferAsync(_earthDB, id);
+            await LoadDataAsync();
+        }
+    }
+
+    private void ShowItemPicker() => _showItemPicker = true;
+
+    private void PickItem(Catalog.ItemsCatalogR.Item item)
+    {
+        _editOffer.ItemId = item.Id;
+        if (string.IsNullOrEmpty(_editOffer.Name)) _editOffer.Name = item.Name;
+        _editOffer.Rarity = item.Rarity.ToString();
+        _showItemPicker = false;
+    }
+
+    private async Task RefreshLiveShopAsync()
+    {
+        try
+        {
+            var eventBus = await Solace.EventBus.Client.EventBusClient.ConnectAsync($"localhost:{Settings.Instance.EventBusPort}");
+            var sender = await eventBus.AddRequestSenderAsync();
+            var response = await sender.SendRequestAsync("api_admin", "RELOAD_SHOP");
+            if (response == "OK")
+            {
+                await JS.InvokeVoidAsync("alert", "Shop refreshed successfully!");
+            }
+            else
+            {
+                _errorMessage = "Failed to refresh shop: " + response;
+            }
+            await eventBus.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to refresh live shop");
+            _errorMessage = "Failed to communicate with the server. Is it running?";
+        }
+    }
+
+    private IEnumerable<Catalog.ItemsCatalogR.Item> GetFilteredItems()
+    {
+        if (_staticData == null) return Array.Empty<Catalog.ItemsCatalogR.Item>();
+        var items = _staticData.Catalog.ItemsCatalog.Items;
+        if (string.IsNullOrWhiteSpace(_itemSearchTerm)) return items.Take(50);
+        return items.Where(i => i.Name.Contains(_itemSearchTerm, StringComparison.OrdinalIgnoreCase) || i.Id.Contains(_itemSearchTerm, StringComparison.OrdinalIgnoreCase)).Take(50);
+    }
+}

@@ -164,7 +164,13 @@ internal sealed class ShopController : SolaceControllerBase
 
     private static async Task<(int Purchased, int Earned)?> ProcessPurchase(string playerId, Guid itemId, int expectedPurchasePrice, CancellationToken cancellationToken)
     {
-        if (!staticData.Playfab.Items.TryGetValue(itemId, out var itemToPurchase))
+        Playfab.Item? itemToPurchase = null;
+        if (!staticData.Playfab.Items.TryGetValue(itemId, out itemToPurchase))
+        {
+            itemToPurchase = Program.shopManager.GetVirtualItem(itemId);
+        }
+
+        if (itemToPurchase == null)
         {
             Log.Debug($"Player {playerId} tried to purchase unknown item '{itemId}' (playfab)");
             return null;

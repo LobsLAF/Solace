@@ -32,6 +32,9 @@ internal static class Permissions
     [PermissionInfo("Players", "Manage player accounts - edit, delete")]
     public const string ManagePlayers = "player.manage";
 
+    [PermissionInfo("Shop", "Manage the in-game shop")]
+    public const string ManageShop = "shop.manage";
+
     [PermissionInfo("Buildplates", "View the imported buildplates")]
     public const string ViewBuildplates = "buildplate.view";
 

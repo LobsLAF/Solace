@@ -25,6 +25,7 @@ public static class Program
 
     internal static EarthDB DB;
     internal static SData staticData;
+    internal static ShopManager shopManager;
     internal static EventBusClient eventBus;
     private static string objectStoreClientConnectionString;
     internal static TappablesManager tappablesManager;
@@ -213,6 +214,9 @@ public static class Program
 
         Log.Information("Loaded static data");
 
+        shopManager = new ShopManager(DB, staticData);
+        await shopManager.InitializeAsync();
+
         Log.Information("Importing shop buildplates");
 
         EarthDB.ObjectResults? currentShopBuildplates = null;
@@ -270,6 +274,8 @@ public static class Program
 
         tappablesManager = await TappablesManager.CreateAsync(eventBus);
         buildplateInstancesManager = await BuildplateInstancesManager.CreateAsync(eventBus);
+
+        await AdminRequestHandler.StartAsync(eventBus, shopManager);
 
         BuildplateInstanceRequestHandler.Start(DB, eventBus, objectStore, staticData.Catalog);
 

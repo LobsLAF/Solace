@@ -4,12 +4,88 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Solace.DB;
+using Solace.DB.Models.Admin;
 using Solace.DB.Models.Player;
 
 namespace Solace.LauncherUI.Utils;
 
 internal static class DataUtils
 {
+    public static async IAsyncEnumerable<(string Id, ShopTab Tab)> GetShopTabsAsync(EarthDB db, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        using var connection = db.OpenConnection(false);
+
+        using (var command = new SqliteCommand($"""
+            SELECT id, value FROM {EarthDB.ObjectsTable} WHERE type = 'shop_tab' ORDER BY json_extract(value, '$.order');
+            """, connection))
+        {
+            using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+            {
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    string id = reader.GetString(0);
+                    var tab = EarthDB.FromJson<ShopTab>(reader.GetString(1));
+                    Debug.Assert(tab is not null);
+                    yield return (id, tab);
+                }
+            }
+        }
+    }
+
+    public static async Task UpdateShopTabAsync(EarthDB db, string id, ShopTab tab, CancellationToken cancellationToken = default)
+    {
+        await new EarthDB.Query(true)
+            .Update("shop_tab", id, tab)
+            .ExecuteAsync(db, cancellationToken);
+    }
+
+    public static async Task DeleteShopTabAsync(EarthDB db, string id, CancellationToken cancellationToken = default)
+    {
+        await db.ExecuteCommandAsync(true, async command =>
+        {
+            command.CommandText = $"DELETE FROM {EarthDB.ObjectsTable} WHERE type = 'shop_tab' AND id = @id";
+            command.Parameters.AddWithValue("@id", id);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }, cancellationToken);
+    }
+
+    public static async IAsyncEnumerable<(string Id, ShopOffer Offer)> GetShopOffersAsync(EarthDB db, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        using var connection = db.OpenConnection(false);
+
+        using (var command = new SqliteCommand($"""
+            SELECT id, value FROM {EarthDB.ObjectsTable} WHERE type = 'shop_offer';
+            """, connection))
+        {
+            using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+            {
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    string id = reader.GetString(0);
+                    var offer = EarthDB.FromJson<ShopOffer>(reader.GetString(1));
+                    Debug.Assert(offer is not null);
+                    yield return (id, offer);
+                }
+            }
+        }
+    }
+
+    public static async Task UpdateShopOfferAsync(EarthDB db, string id, ShopOffer offer, CancellationToken cancellationToken = default)
+    {
+        await new EarthDB.Query(true)
+            .Update("shop_offer", id, offer)
+            .ExecuteAsync(db, cancellationToken);
+    }
+
+    public static async Task DeleteShopOfferAsync(EarthDB db, string id, CancellationToken cancellationToken = default)
+    {
+        await db.ExecuteCommandAsync(true, async command =>
+        {
+            command.CommandText = $"DELETE FROM {EarthDB.ObjectsTable} WHERE type = 'shop_offer' AND id = @id";
+            command.Parameters.AddWithValue("@id", id);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }, cancellationToken);
+    }
     public static SqliteConnection? OpenLiveDB(Settings settings)
     {
         try
