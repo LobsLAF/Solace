@@ -10,9 +10,9 @@ RST='\033[0m'
 
 banner() {
     echo -e "${ORG}"
-    echo "===================================="
-    echo "SOLACE INSTALLER Bridge Speed Up 0.1"
-    echo "===================================="
+    echo "=============================="
+    echo "    SOLACE INSTALLER   "
+    echo "=============================="
     echo -e "${RST}"
 }
 
