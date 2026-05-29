@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using System.Net;
 using System.Text.Json;
 using Solace.Common.Utils;
@@ -29,6 +29,7 @@ public sealed class Settings
         SkipFileChecks = false,
         StaticDataPath = "../staticdata",
         LauncherBuildplatePreview = false,
+        UseModdedResourcePack = false,
     };
 
     public static Settings Instance { get; set; } = Default;
@@ -54,6 +55,8 @@ public sealed class Settings
     public string? StaticDataPath {get;set;}
 
     public bool? LauncherBuildplatePreview { get; set; }
+
+    public bool? UseModdedResourcePack { get; set; }
 
     public enum TileDataSourceE
     {
@@ -185,6 +188,12 @@ public sealed class Settings
         {
             Log.Warning($"StaticData path is invalid, using default: '{Default.StaticDataPath}'");
             settings.StaticDataPath = Default.StaticDataPath;
+        }
+
+        if (settings.UseModdedResourcePack is null)
+        {
+            Log.Warning($"UseModdedResourcePack is invalid, using default: '{Default.UseModdedResourcePack}'");
+            settings.UseModdedResourcePack = Default.UseModdedResourcePack;
         }
 
         Log.Information("Loaded settings");

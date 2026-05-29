@@ -30,6 +30,7 @@ public static class Program
     internal static TappablesManager tappablesManager;
     internal static BuildplateInstancesManager buildplateInstancesManager;
     internal static Importer importer;
+    public static bool UseModdedResourcePack;
 
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     private sealed class Options
@@ -55,6 +56,9 @@ public static class Program
 
         [Option("logger-url", Default = null, Required = false, HelpText = "Url to send logs to")]
         public string? LoggerUrl { get; set; }
+
+        [Option("use-modded-resource-pack", Default = false, Required = false)]
+        public bool UseModdedResourcePack { get; set; }
     }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
@@ -112,6 +116,8 @@ public static class Program
         {
             return 1;
         }
+
+        UseModdedResourcePack = options.UseModdedResourcePack;
 
         var loggerConfig = new LoggerConfiguration()
             .WriteTo.Console()

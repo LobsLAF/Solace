@@ -36,11 +36,12 @@ public class ResourcePackCdnController : ControllerBase
     [HttpGet, HttpHead]
     public async Task<Results<BadRequest, FileContentHttpResult>> Get()
     {
-        string resourcePackFilePath = Path.Combine(Program.staticData.Directory, @"resourcepacks/vanilla.zip"); //resource packs are distributed as renamed zip files containing an MCpack
+        string resourcePackName = Program.UseModdedResourcePack ? "modded.zip" : "vanilla.zip";
+        string resourcePackFilePath = Path.Combine(Program.staticData.Directory, $@"resourcepacks/{resourcePackName}"); //resource packs are distributed as renamed zip files containing an MCpack
 
         if (!System.IO.File.Exists(resourcePackFilePath))
         {
-            Log.Error("[Resourcepacks] Error! Resource pack file not found.");
+            Log.Error($"[Resourcepacks] Error! Resource pack file '{resourcePackName}' not found.");
             return TypedResults.BadRequest(); //we cannot serve you.
         }
 

@@ -140,6 +140,13 @@
                         <label class="form-check-label" for="buildPreview">Enable Buildplate Preview in Launcher</label>
                         <ValidationMessage For="@(() => SettingsModel.LauncherBuildplatePreview)" />
                     </div>
+
+                    <div class="mb-3 form-check form-switch">
+                        <InputCheckbox @bind-Value="SettingsModel.UseModdedResourcePack" class="form-check-input"
+                                       id="moddedResourcePack" />
+                        <label class="form-check-label" for="moddedResourcePack">Use Modded Resource Pack</label>
+                        <ValidationMessage For="@(() => SettingsModel.UseModdedResourcePack)" />
+                    </div>
                 </div>
             </div>
 
@@ -178,6 +185,7 @@
         SettingsModel.SkipFileChecks = source.SkipFileChecks ?? false;
         SettingsModel.StaticDataPath = source.StaticDataPath;
         SettingsModel.LauncherBuildplatePreview = source.LauncherBuildplatePreview ?? false;
+        SettingsModel.UseModdedResourcePack = source.UseModdedResourcePack ?? false;
     }
 
     private void HandleSave()
@@ -198,6 +206,7 @@
             SkipFileChecks = SettingsModel.SkipFileChecks,
             StaticDataPath = SettingsModel.StaticDataPath,
             LauncherBuildplatePreview = SettingsModel.LauncherBuildplatePreview,
+            UseModdedResourcePack = SettingsModel.UseModdedResourcePack,
         };
 
         Settings.Instance = settings;
@@ -257,6 +266,7 @@
         public string? StaticDataPath { get; set; }
 
         public bool LauncherBuildplatePreview { get; set; }
+        public bool UseModdedResourcePack { get; set; }
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {

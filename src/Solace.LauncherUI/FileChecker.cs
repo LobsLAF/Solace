@@ -94,22 +94,34 @@ internal static class FileChecker
 
         logger.Debug("All static files exist");
 
-        var resourcePack = new FileInfo(Path.GetFullPath(Path.Combine(Program.StaticDataDir, "resourcepacks", "vanilla.zip")));
-        if (!resourcePack.Exists)
+        if (settings.UseModdedResourcePack is true)
         {
-            logger.Error($"Resourcepack file '{resourcePack.FullName}' does not exist");
-            logger.Information("Download it from https://cdn.mceserv.net/availableresourcepack/resourcepacks/dba38e59-091a-4826-b76a-a08d7de5a9e2-1301b0c257a311678123b9e7325d0d6c61db3c35 (using internet archive)");
-            logger.Information($"Rename it to vanilla.zip and move it to: {Path.GetFullPath(Path.Combine(Program.StaticDataDir, "resourcepacks"))}");
-
-            error = true;
+            var resourcePack = new FileInfo(Path.GetFullPath(Path.Combine(Program.StaticDataDir, "resourcepacks", "modded.zip")));
+            if (!resourcePack.Exists)
+            {
+                logger.Error($"Resourcepack file '{resourcePack.FullName}' does not exist, but 'Use Modded Resource Pack' is enabled.");
+                error = true;
+            }
         }
-        else if (resourcePack.Length < 100_000_000)
+        else
         {
-            logger.Error($"Resourcepack file '{resourcePack.FullName}' is invalid, expected size: 131885348B, actual size: {resourcePack.Length}B");
-            logger.Information("Download it from https://cdn.mceserv.net/availableresourcepack/resourcepacks/dba38e59-091a-4826-b76a-a08d7de5a9e2-1301b0c257a311678123b9e7325d0d6c61db3c35 (using internet archive)");
-            logger.Information($"Rename it to vanilla.zip and move it to: {Path.GetFullPath(Path.Combine(Program.StaticDataDir, "resourcepacks"))}");
+            var resourcePack = new FileInfo(Path.GetFullPath(Path.Combine(Program.StaticDataDir, "resourcepacks", "vanilla.zip")));
+            if (!resourcePack.Exists)
+            {
+                logger.Error($"Resourcepack file '{resourcePack.FullName}' does not exist");
+                logger.Information("Download it from https://cdn.mceserv.net/availableresourcepack/resourcepacks/dba38e59-091a-4826-b76a-a08d7de5a9e2-1301b0c257a311678123b9e7325d0d6c61db3c35 (using internet archive)");
+                logger.Information($"Rename it to vanilla.zip and move it to: {Path.GetFullPath(Path.Combine(Program.StaticDataDir, "resourcepacks"))}");
 
-            error = true;
+                error = true;
+            }
+            else if (resourcePack.Length < 100_000_000)
+            {
+                logger.Error($"Resourcepack file '{resourcePack.FullName}' is invalid, expected size: 131885348B, actual size: {resourcePack.Length}B");
+                logger.Information("Download it from https://cdn.mceserv.net/availableresourcepack/resourcepacks/dba38e59-091a-4826-b76a-a08d7de5a9e2-1301b0c257a311678123b9e7325d0d6c61db3c35 (using internet archive)");
+                logger.Information($"Rename it to vanilla.zip and move it to: {Path.GetFullPath(Path.Combine(Program.StaticDataDir, "resourcepacks"))}");
+
+                error = true;
+            }
         }
 
         if (checkImporter)

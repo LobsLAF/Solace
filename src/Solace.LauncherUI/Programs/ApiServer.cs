@@ -36,6 +36,7 @@ internal static class ApiServer
             $"--objectstore=localhost:{settings.ObjectStorePort}",
             $"--logger-url={Program.LoggerAddress}",
             $"--dir={Program.StaticDataDir}",
+            $"--use-modded-resource-pack={settings.UseModdedResourcePack ?? false}",
         ])
         {
             WorkingDirectory = Path.GetFullPath(Program.ProgramsDir),
